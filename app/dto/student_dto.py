@@ -1,5 +1,3 @@
-# app/dto/student_dto.py
-
 class StudentDTO:
     def __init__(self, student):
         self.id = student.id
