@@ -8,15 +8,17 @@ db = SQLAlchemy()
 def create_app():
     app = Flask(__name__)
 
-    # Load config
     from app.config import Config
     app.config.from_object(Config)
 
-    # Enable CORS
     CORS(app, origins=app.config["CORS_ORIGINS"])
 
-    # Initialize DB
     db.init_app(app)
+
+    # Import models so tables get created ← THIS PART IS CRITICAL
+    from app.models.student_model import Student
+    from app.models.teacher_model import Teacher
+    from app.models.attendance_model import AttendanceRecord
 
     # Register routes
     from app.routes.student_routes import student_bp
