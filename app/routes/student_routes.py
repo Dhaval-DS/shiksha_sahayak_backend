@@ -1,142 +1,77 @@
 from flask import Blueprint, request, jsonify
-from app.services.student_service import (
-    create_student,
-    get_all_students,
-    get_student_by_id,
-    update_student,
-    delete_student
-)
+from app.services.student_service import StudentService
 from app.dto.student_dto import StudentDTO
-import logging
 
-student_bp = Blueprint("student_bp", __name__, url_prefix="/api")
-
-# Logging setup
-logging.basicConfig(level=logging.INFO)
+student_bp = Blueprint("student", __name__, url_prefix="/api/students")
+student_service = StudentService()
 
 
-# CREATE
-@student_bp.route("/students", methods=["POST"])
-def add_student():
-    try:
-        data = request.get_json()
+# POST /api/students/createStudent
+@student_bp.route("/createStudent", methods=["POST"])
+def create_student():
+    data = request.form.to_dict()
+    photo = request.files.get("photo")  # optional
 
-        if not data:
-            logging.warning("No data provided in request")
-            return jsonify({"error": "No data provided"}), 400
+    student_dto = StudentDTO(data=data)
 
-        name = data.get("name")
-        age = data.get("age")
+    created_student = student_service.create_student(student_dto)
 
-        if not name or not age:
-            logging.warning("Missing name or age")
-            return jsonify({"error": "Name and Age are required"}), 400
+    if photo and photo.filename != "":
+        student_service.upload_student_photo(created_student.id, photo)
 
-        logging.info(f"Creating student: {name}, Age: {age}")
-
-        student = create_student(name, age)
-
-        logging.info(f"Student created with ID: {student.id}")
-
-        return jsonify({
-            "status": "success",
-            "data": StudentDTO(student).to_dict()
-        }), 201
-
-    except Exception as e:
-        logging.error(f"Error creating student: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+    return jsonify(StudentDTO(student=created_student).to_dict()), 201
 
 
-# GET ALL
-@student_bp.route("/students", methods=["GET"])
-def list_students():
-    try:
-        logging.info("Fetching all students")
-
-        students = get_all_students()
-
-        return jsonify({
-            "status": "success",
-            "data": [StudentDTO(s).to_dict() for s in students]
-        }), 200
-
-    except Exception as e:
-        logging.error(f"Error fetching students: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+# GET /api/students/getStudentById/<id>
+@student_bp.route("/getStudentById/<int:id>", methods=["GET"])
+def get_student_by_id(id):
+    student = student_service.get_student_by_id(id)
+    return jsonify(StudentDTO(student=student).to_dict()), 200
 
 
-# GET BY ID
-@student_bp.route("/students/<int:id>", methods=["GET"])
-def get_student(id):
-    try:
-        logging.info(f"Fetching student with ID: {id}")
-
-        student = get_student_by_id(id)
-
-        if not student:
-            logging.warning(f"Student not found with ID: {id}")
-            return jsonify({"error": "Student not found"}), 404
-
-        return jsonify({
-            "status": "success",
-            "data": StudentDTO(student).to_dict()
-        }), 200
-
-    except Exception as e:
-        logging.error(f"Error fetching student: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+# GET /api/students/getAllStudents?classId=<classId>
+@student_bp.route("/getAllStudents", methods=["GET"])
+def get_all_students():
+    class_id = request.args.get("classId", type=int)  # optional query param
+    students = student_service.get_all_students(class_id)
+    return jsonify([StudentDTO(student=s).to_dict() for s in students]), 200
 
 
-# UPDATE
-@student_bp.route("/students/<int:id>", methods=["PUT"])
-def update_student_api(id):
-    try:
-        data = request.get_json()
+# PUT /api/students/updateStudent/<id>
+@student_bp.route("/updateStudent/<int:id>", methods=["PUT"])
+def update_student(id):
+    data = request.form.to_dict()
+    photo = request.files.get("photo")  # optional
 
-        if not data:
-            logging.warning("No data provided for update")
-            return jsonify({"error": "No data provided"}), 400
+    student_dto = StudentDTO(data=data)
 
-        logging.info(f"Updating student ID: {id}")
+    updated_student = student_service.update_student(id, student_dto)
 
-        student = update_student(id, data)
+    if photo and photo.filename != "":
+        student_service.upload_student_photo(updated_student.id, photo)
 
-        if not student:
-            logging.warning(f"Student not found for update: {id}")
-            return jsonify({"error": "Student not found"}), 404
-
-        logging.info(f"Student updated: {id}")
-
-        return jsonify({
-            "status": "success",
-            "data": StudentDTO(student).to_dict()
-        }), 200
-
-    except Exception as e:
-        logging.error(f"Error updating student: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+    return jsonify(StudentDTO(student=updated_student).to_dict()), 200
 
 
-# DELETE
-@student_bp.route("/students/<int:id>", methods=["DELETE"])
-def delete_student_api(id):
-    try:
-        logging.info(f"Deleting student ID: {id}")
+# DELETE /api/students/deleteStudent/<id>
+@student_bp.route("/deleteStudent/<int:id>", methods=["DELETE"])
+def delete_student(id):
+    student_service.delete_student(id)
+    return "", 204
 
-        result = delete_student(id)
 
-        if not result:
-            logging.warning(f"Student not found for deletion: {id}")
-            return jsonify({"error": "Student not found"}), 404
+# POST /api/students/StudentPhoto/<id>
+@student_bp.route("/StudentPhoto/<int:id>", methods=["POST"])
+def upload_photo(id):
+    file = request.files.get("file")
+    if not file or file.filename == "":
+        return jsonify({"error": "No file provided"}), 400
 
-        logging.info(f"Student deleted: {id}")
+    student_service.upload_student_photo(id, file)
+    return jsonify({"message": "Photo uploaded successfully"}), 200
 
-        return jsonify({
-            "status": "success",
-            "message": "Student deleted"
-        }), 200
 
-    except Exception as e:
-        logging.error(f"Error deleting student: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+# GET /api/students/StudentPhoto/<id>
+@student_bp.route("/StudentPhoto/<int:id>", methods=["GET"])
+def get_photo(id):
+    return student_service.get_student_photo(id)
