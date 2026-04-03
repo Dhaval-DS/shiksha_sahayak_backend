@@ -11,5 +11,5 @@ class Teacher(db.Model):
     subject_taught = db.Column(db.String(100), nullable=True)
     teaching_experience = db.Column(db.String(100), nullable=True)
     school_name = db.Column(db.String(100), nullable=True)
-
+    role = db.Column(db.String(20), default="teacher")
     # ← removed classes relationship for now

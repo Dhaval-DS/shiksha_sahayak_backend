@@ -18,8 +18,7 @@ class TeacherOutDTO:
         self.subject_taught = teacher.subject_taught
         self.teaching_experience = teacher.teaching_experience
         self.school_name = teacher.school_name
-        self.class_count = len(teacher.classes) if teacher.classes else 0
-
+        self.class_count = 0
     def to_dict(self):
         return {
             "id": self.id,
